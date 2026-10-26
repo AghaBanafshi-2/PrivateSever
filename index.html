@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrS | سرور ماینکرفت</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --white: #ffffff;
+    --black: #0a0a0a;
+    --blue: #3b9dff;
+    --blue-light: #7cc0ff;
+    --blue-dark: #1e5fa8;
+    --blue-glow: rgba(59,157,255,0.4);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Vazirmatn', sans-serif;
+    background: var(--black);
+    color: var(--white);
+    overflow-x: hidden;
+    line-height: 1.7;
+  }
+
+  /* ===== پس‌زمینه ===== */
+  .bg-anim { position: fixed; inset: 0; z-index: -2; background: #060b14; overflow: hidden; }
+  .bg-anim::before {
+    content: ''; position: absolute; width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(59,157,255,0.15), transparent 70%);
+    top: -200px; left: -150px; animation: float1 18s ease-in-out infinite;
+  }
+  .bg-anim::after {
+    content: ''; position: absolute; width: 500px; height: 500px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(59,157,255,0.10), transparent 70%);
+    bottom: -150px; right: -100px; animation: float2 22s ease-in-out infinite;
+  }
+  .bg-grid {
+    position: fixed; inset: 0; z-index: -1;
+    background-image:
+      linear-gradient(rgba(59,157,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,157,255,0.06) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(circle at 50% 30%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(circle at 50% 30%, #000 20%, transparent 75%);
+  }
+  @keyframes float1 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(120px,80px) scale(1.2);} }
+  @keyframes float2 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-100px,-60px) scale(1.15);} }
+
+  .particles { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+  .particle {
+    position: absolute; width: 3px; height: 3px; background: var(--blue-light); border-radius: 50%;
+    opacity: 0; animation: rise linear infinite; box-shadow: 0 0 6px var(--blue);
+  }
+  @keyframes rise {
+    0% { opacity: 0; transform: translateY(0) scale(0.5); }
+    10% { opacity: .9; } 90% { opacity: .6; }
+    100% { opacity: 0; transform: translateY(-100vh) scale(1.2); }
+  }
+
+  /* ===== Header ===== */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 6%; background: rgba(6,11,20,0.75); backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(59,157,255,0.15); z-index: 100;
+    animation: slideDown .8s ease;
+  }
+  @keyframes slideDown { from{transform:translateY(-100%);opacity:0;} to{transform:translateY(0);opacity:1;} }
+
+  .logo {
+    font-size: 1.8rem; font-weight: 900; letter-spacing: 3px;
+    background: linear-gradient(90deg, var(--blue-light), #fff, var(--blue), var(--blue-light));
+    background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; animation: shine 4s linear infinite;
+    filter: drop-shadow(0 0 12px var(--blue-glow));
+  }
+  @keyframes shine { to { background-position: 200% center; } }
+
+  nav a {
+    color: #b5c8e0; text-decoration: none; margin: 0 14px; font-weight: 400;
+    font-size: 0.95rem; position: relative; transition: color .3s;
+  }
+  nav a::after {
+    content: ''; position: absolute; bottom: -5px; right: 0;
+    width: 0; height: 2px; background: var(--blue); transition: width .3s;
+    box-shadow: 0 0 8px var(--blue);
+  }
+  nav a:hover { color: var(--blue-light); }
+  nav a:hover::after { width: 100%; }
+
+  /* ===== Hero ===== */
+  .hero {
+    min-height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    text-align: center; padding: 120px 6% 80px; position: relative;
+  }
+  .hero h1 {
+    font-size: clamp(3rem, 10vw, 7rem); font-weight: 900; letter-spacing: 6px;
+    margin-bottom: 18px;
+    background: linear-gradient(120deg, #ffffff 0%, var(--blue-light) 40%, #ffffff 60%, var(--blue) 100%);
+    background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shine 5s linear infinite, fadeUp 1s ease .2s both;
+    filter: drop-shadow(0 0 35px var(--blue-glow));
+  }
+  .hero p {
+    color: #9fb5d0; max-width: 600px; font-size: 1.1rem; margin-bottom: 36px;
+    animation: fadeUp 1s ease .5s both;
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(30px);} to{opacity:1;transform:translateY(0);} }
+
+  .ip-box {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(20,30,48,0.85); border: 1px solid rgba(59,157,255,0.3);
+    border-radius: 50px; padding: 14px 24px; font-size: 1rem; font-weight: 700;
+    letter-spacing: 1px; cursor: pointer; transition: all .3s; direction: ltr;
+    position: relative; overflow: hidden; animation: fadeUp 1s ease .8s both;
+    color: var(--blue-light);
+  }
+  .ip-box::before {
+    content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59,157,255,0.3), transparent);
+    transition: left .6s;
+  }
+  .ip-box:hover::before { left: 100%; }
+  .ip-box:hover {
+    background: var(--blue); color: #fff; transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 10px 45px var(--blue-glow); border-color: var(--blue-light);
+  }
+  .ip-box .copy-icon { font-size: 0.9rem; opacity: .8; }
+
+  .status-bar {
+    display: flex; gap: 28px; margin-top: 40px; flex-wrap: wrap;
+    justify-content: center; animation: fadeUp 1s ease 1.1s both;
+  }
+  .status-item {
+    display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #b5c8e0;
+  }
+  .status-item.clickable {
+    cursor: pointer; padding: 8px 16px; border-radius: 50px;
+    border: 1px solid rgba(59,157,255,0.25);
+    background: rgba(20,30,48,0.6);
+    transition: all .3s;
+  }
+  .status-item.clickable:hover {
+    background: var(--blue); color: #fff; transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--blue-glow); border-color: var(--blue-light);
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%; background: #2ecc71;
+    box-shadow: 0 0 12px #2ecc71; animation: pulse 1.6s infinite;
+  }
+  .dot.off { background: #e74c3c; box-shadow: 0 0 12px #e74c3c; animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(1.3);} }
+
+  .reveal { opacity: 0; transform: translateY(50px); transition: opacity .8s ease, transform .8s ease; }
+  .reveal.show { opacity: 1; transform: translateY(0); }
+
+  /* ===== Sections ===== */
+  section { padding: 90px 6%; position: relative; }
+  .section-title {
+    text-align: center; font-size: 2rem; font-weight: 900; margin-bottom: 12px;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, var(--blue-light), #fff, var(--blue), var(--blue-light));
+    background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; animation: shine 4s linear infinite;
+  }
+  .section-sub { text-align: center; color: #7a8fa8; margin-bottom: 50px; font-size: 0.95rem; }
+
+  /* ===== گیم‌مودها ===== */
+  .modes {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px; max-width: 1000px; margin: 0 auto;
+  }
+  .mode-card {
+    background: linear-gradient(160deg, rgba(20,30,48,0.95), rgba(10,15,25,0.95));
+    border: 1px solid rgba(59,157,255,0.15); border-radius: 18px;
+    padding: 40px 28px; text-align: center;
+    transition: all .4s cubic-bezier(.2,.8,.2,1); position: relative; overflow: hidden;
+  }
+  .mode-card::before {
+    content: ''; position: absolute; inset: 0; border-radius: 18px; padding: 1.5px;
+    background: linear-gradient(135deg, var(--blue-light), transparent, var(--blue));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0; transition: opacity .4s;
+  }
+  .mode-card:hover::before { opacity: .8; }
+  .mode-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 40px var(--blue-glow);
+  }
+  .mode-card .icon { font-size: 3rem; margin-bottom: 16px; transition: transform .4s; }
+  .mode-card:hover .icon { transform: scale(1.15) rotate(-5deg); }
+  .mode-card h3 { font-size: 1.4rem; margin-bottom: 10px; color: var(--blue-light); }
+  .mode-card p { color: #8fa5c0; font-size: 0.95rem; }
+  .mode-card.soon { opacity: .65; border-style: dashed; }
+  .badge {
+    display: inline-block; margin-top: 14px; font-size: 0.75rem; font-weight: 700;
+    padding: 5px 14px; border-radius: 50px;
+    background: rgba(59,157,255,0.15); color: var(--blue-light);
+    letter-spacing: 1px; border: 1px solid rgba(59,157,255,0.3);
+    animation: badgePulse 2s infinite;
+  }
+  @keyframes badgePulse {
+    0%,100%{box-shadow:0 0 0 0 var(--blue-glow);}
+    50%{box-shadow:0 0 0 8px rgba(59,157,255,0);}
+  }
+
+  /* ===== پلیرها ===== */
+  .players-box {
+    max-width: 800px; margin: 0 auto;
+    background: linear-gradient(160deg, rgba(20,30,48,0.95), rgba(10,15,25,0.95));
+    border: 1px solid rgba(59,157,255,0.15); border-radius: 18px; padding: 30px;
+  }
+  .players-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 22px; padding-bottom: 18px;
+    border-bottom: 1px solid rgba(59,157,255,0.15);
+  }
+  .players-header h3 { font-size: 1.1rem; color: var(--blue-light); }
+  .players-header .count { font-size: 0.9rem; color: #7a8fa8; }
+
+  .view-players-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 16px; margin-top: 16px;
+    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+    color: #fff; border: 1px solid var(--blue-light); border-radius: 12px;
+    font-family: inherit; font-size: 1rem; font-weight: 700;
+    cursor: pointer; transition: all .3s;
+    position: relative; overflow: hidden;
+  }
+  .view-players-btn::before {
+    content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left .6s;
+  }
+  .view-players-btn:hover::before { left: 100%; }
+  .view-players-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 35px var(--blue-glow);
+    background: linear-gradient(135deg, var(--blue-light), var(--blue));
+  }
+  .view-players-btn:active { transform: translateY(-1px); }
+
+  .player-preview { display: flex; flex-wrap: wrap; gap: 10px; }
+  .player-tag {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(10,15,25,0.8); border: 1px solid rgba(59,157,255,0.2);
+    border-radius: 50px; padding: 8px 16px; font-size: 0.9rem;
+    color: #c5d5e8; direction: ltr; transition: all .3s;
+    animation: popIn .4s ease both;
+  }
+  .player-tag:hover {
+    background: var(--blue); color: #fff; transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--blue-glow);
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(.7);} to{opacity:1;transform:scale(1);} }
+  .player-tag .avatar { width: 22px; height: 22px; border-radius: 4px; background: #fff; }
+  .loading { color: #7a8fa8; font-size: 0.95rem; }
+
+  /* ===== تیم ===== */
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 28px;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .team-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(20,30,48,0.95), rgba(10,15,25,0.95));
+    border: 1px solid rgba(59,157,255,0.25);
+    border-radius: 22px;
+    padding: 44px 26px 36px;
+    text-align: center;
+    transition: all .4s cubic-bezier(.2,.8,.2,1);
+    overflow: hidden;
+  }
+  .team-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    padding: 1.5px;
+    background: linear-gradient(135deg, var(--blue-light), transparent 40%, transparent 60%, var(--blue));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity .4s;
+  }
+  .team-card:hover::before { opacity: 1; }
+  .team-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 30px 70px rgba(0,0,0,0.8), 0 0 60px var(--blue-glow);
+  }
+
+  .team-avatar-wrap {
+    position: relative;
+    width: 128px;
+    height: 128px;
+    margin: 0 auto 22px;
+  }
+  .team-avatar-wrap::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--blue), transparent, var(--blue-light), transparent, var(--blue));
+    opacity: .35;
+    animation: rotateGlow 6s linear infinite;
+    filter: blur(6px);
+  }
+  @keyframes rotateGlow { to { transform: rotate(360deg); } }
+
+  .team-avatar {
+    position: relative;
+    width: 128px;
+    height: 128px;
+    border-radius: 20px;
+    object-fit: cover;
+    border: 3px solid rgba(59,157,255,0.5);
+    background: #0f1825;
+    transition: all .4s;
+    image-rendering: pixelated;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  }
+  .team-card:hover .team-avatar {
+    border-color: var(--blue-light);
+    transform: scale(1.05) rotate(-2deg);
+    box-shadow: 0 15px 50px var(--blue-glow);
+  }
+
+  .team-role {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    padding: 6px 18px;
+    border-radius: 50px;
+    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+    color: #fff;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    border: 1px solid var(--blue-light);
+    box-shadow: 0 0 20px var(--blue-glow);
+  }
+
+  .team-name {
+    font-size: 1.4rem;
+    font-weight: 900;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+    direction: ltr;
+    background: linear-gradient(90deg, #fff, var(--blue-light), #fff);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shine 4s linear infinite;
+  }
+
+  .team-desc {
+    color: #8fa5c0;
+    font-size: 0.85rem;
+    margin-top: 6px;
+  }
+
+  /* ===== مودال ===== */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+    backdrop-filter: blur(10px); z-index: 999;
+    display: flex; justify-content: center; align-items: center;
+    padding: 20px; opacity: 0; visibility: hidden;
+    transition: opacity .35s ease, visibility .35s ease;
+  }
+  .modal-overlay.active { opacity: 1; visibility: visible; }
+  .modal {
+    background: linear-gradient(160deg, #0f1825, #060b14);
+    border: 1px solid rgba(59,157,255,0.3);
+    border-radius: 22px; padding: 30px;
+    width: 100%; max-width: 620px; max-height: 85vh;
+    display: flex; flex-direction: column;
+    transform: scale(0.85) translateY(30px);
+    transition: transform .35s cubic-bezier(.2,.8,.2,1);
+    box-shadow: 0 30px 100px rgba(0,0,0,0.9), 0 0 60px var(--blue-glow);
+  }
+  .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+  .modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px; margin-bottom: 20px;
+    border-bottom: 1px solid rgba(59,157,255,0.2);
+  }
+  .modal-header h2 {
+    font-size: 1.3rem; font-weight: 900;
+    background: linear-gradient(90deg, var(--blue-light), #fff, var(--blue));
+    background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; animation: shine 3s linear infinite;
+  }
+  .modal-close {
+    background: rgba(59,157,255,0.12); border: 1px solid rgba(59,157,255,0.3);
+    color: var(--blue-light); width: 38px; height: 38px; border-radius: 50%;
+    font-size: 1.2rem; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: all .25s;
+  }
+  .modal-close:hover { background: var(--blue); color: #fff; transform: rotate(90deg); }
+  .modal-body {
+    overflow-y: auto; padding-right: 6px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .modal-body::-webkit-scrollbar { width: 6px; }
+  .modal-body::-webkit-scrollbar-track { background: rgba(59,157,255,0.05); border-radius: 10px; }
+  .modal-body::-webkit-scrollbar-thumb { background: rgba(59,157,255,0.35); border-radius: 10px; }
+  .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(59,157,255,0.6); }
+
+  .player-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px;
+    background: rgba(59,157,255,0.05);
+    border: 1px solid rgba(59,157,255,0.12);
+    border-radius: 12px;
+    transition: all .25s;
+    animation: slideInRow .4s ease both;
+  }
+  @keyframes slideInRow {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .player-row:hover {
+    background: var(--blue); color: #fff;
+    transform: translateX(-5px);
+    border-color: var(--blue-light);
+    box-shadow: 0 5px 20px var(--blue-glow);
+  }
+  .player-row .avatar-lg {
+    width: 42px; height: 42px; border-radius: 8px;
+    background: #fff; flex-shrink: 0;
+    border: 2px solid rgba(59,157,255,0.4);
+  }
+  .player-row .name {
+    font-weight: 700; font-size: 1rem;
+    direction: ltr; text-align: left; flex: 1;
+  }
+  .player-row .rank-badge {
+    font-size: 0.7rem; padding: 3px 10px; border-radius: 50px;
+    background: rgba(59,157,255,0.2); color: var(--blue-light);
+    font-weight: 700; letter-spacing: .5px;
+  }
+  .player-row:hover .rank-badge { background: rgba(255,255,255,0.2); color: #fff; }
+  .player-row .online-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #2ecc71; box-shadow: 0 0 8px #2ecc71;
+    flex-shrink: 0;
+    animation: pulse 1.6s infinite;
+  }
+  .modal-empty { text-align: center; padding: 40px 20px; color: #7a8fa8; }
+  .modal-empty .emoji { font-size: 3rem; margin-bottom: 12px; opacity: .6; }
+
+  /* ===== فوتر ===== */
+  footer {
+    text-align: center; padding: 40px 6%;
+    border-top: 1px solid rgba(59,157,255,0.15);
+    color: #5a708a; font-size: 0.85rem;
+  }
+  footer strong {
+    background: linear-gradient(90deg, var(--blue-light), #fff, var(--blue));
+    background-size: 200% auto; -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; animation: shine 3s linear infinite;
+  }
+
+  @media (max-width: 600px) {
+    nav a { margin: 0 8px; font-size: 0.85rem; }
+    .logo { font-size: 1.4rem; }
+    .modal { padding: 20px; }
+    .modal-header h2 { font-size: 1.1rem; }
+    .player-row .avatar-lg { width: 36px; height: 36px; }
+    .player-row .name { font-size: 0.9rem; }
+    .ip-box { font-size: 0.85rem; padding: 12px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-anim"></div>
+<div class="bg-grid"></div>
+<div class="particles" id="particles"></div>
+
+<header>
+  <div class="logo">PrS</div>
+  <nav>
+    <a href="#modes">گیم‌مودها</a>
+    <a href="#players">پلیرها</a>
+    <a href="#team">تیم</a>
+    <a href="#connect">اتصال</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <h1>PrS</h1>
+  <p>سرور ماینکرفت فارسی — دنیایی تازه برای ساختن، ماجراجویی و رقابت</p>
+
+  <div class="ip-box" onclick="copyIP()" title="کلیک کنید تا کپی شود">
+    <span>aio44-SP9r.aternos.me:64838</span>
+    <span class="copy-icon" id="copyIcon">📋</span>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">در حال بررسی وضعیت...</span>
+    </div>
+    <div class="status-item clickable" onclick="openPlayerModal()" title="برای دیدن لیست کامل کلیک کنید">
+      <span>👥</span>
+      <span id="playerCount">— پلیر آنلاین</span>
+    </div>
+  </div>
+</div>
+
+<!-- گیم‌مودها -->
+<section id="modes">
+  <h2 class="section-title reveal">گیم‌مودها</h2>
+  <p class="section-sub reveal">حالت‌های موجود در سرور PrS</p>
+
+  <div class="modes">
+    <div class="mode-card reveal">
+      <div class="icon">⛏️</div>
+      <h3>Survival</h3>
+      <p>سروایول کلاسیک با اقتصادی پویا، محافظت از زمین و گیم‌پلی متعادل</p>
+    </div>
+    <div class="mode-card soon reveal">
+      <div class="icon">🎮</div>
+      <h3>Mini Games</h3>
+      <p>مجموعه‌ای از مینی‌گیم‌های هیجان‌انگیز — در حال ساخت</p>
+      <span class="badge">به‌زودی</span>
+    </div>
+  </div>
+</section>
+
+<!-- پلیرها -->
+<section id="players">
+  <h2 class="section-title reveal">پلیرهای آنلاین</h2>
+  <p class="section-sub reveal">برای دیدن لیست کامل کلیک کنید</p>
+
+  <div class="players-box reveal">
+    <div class="players-header">
+      <h3>👥 پیش‌نمایش پلیرها</h3>
+      <span class="count" id="playerTotal">—</span>
+    </div>
+    <div class="player-preview" id="playerPreview">
+      <span class="loading">در حال دریافت لیست پلیرها...</span>
+    </div>
+    <button class="view-players-btn" onclick="openPlayerModal()">
+      <span>👁️</span>
+      <span>مشاهده لیست کامل پلیرها</span>
+    </button>
+  </div>
+</section>
+
+<!-- تیم -->
+<section id="team">
+  <h2 class="section-title reveal">تیم PrS</h2>
+  <p class="section-sub reveal">سازنده و مالک سرور</p>
+
+  <div class="team-grid">
+    <div class="team-card reveal">
+      <div class="team-avatar-wrap">
+        <img class="team-avatar"
+             src="https://raw.githubusercontent.com/AghaBanafshi-2/Reponew/refs/heads/main/dev-head.png"
+             alt="TheAghaBanafshii"
+             width="128" height="128"
+             onerror="this.src='https://mc-heads.net/avatar/MHF_Steve/128'">
+      </div>
+      <span class="team-role">Owner &amp; Developer</span>
+      <div class="team-name">TheAghaBanafshii</div>
+      <div class="team-desc">مؤسس، مالک و توسعه‌دهنده سرور</div>
+    </div>
+  </div>
+</section>
+
+<!-- اتصال -->
+<section id="connect">
+  <h2 class="section-title reveal">اتصال به سرور</h2>
+  <p class="section-sub reveal">آی‌پی زیر را در ماینکرفت خود وارد کنید</p>
+  <div style="text-align:center;" class="reveal">
+    <div class="ip-box" onclick="copyIP()" style="display:inline-flex;">
+      <span>aio44-SP9r.aternos.me:64838</span>
+      <span class="copy-icon">📋</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  ساخته شده برای سرور <strong>PrS</strong> — تمامی حقوق محفوظ است
+</footer>
+
+<!-- مودال -->
+<div class="modal-overlay" id="playerModal" onclick="closePlayerModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>👥 لیست پلیرهای آنلاین</h2>
+      <button class="modal-close" onclick="closePlayerModal()" title="بستن">✕</button>
+    </div>
+    <div class="modal-body" id="modalPlayerList">
+      <div class="modal-empty">
+        <div class="emoji">⏳</div>
+        <div>در حال بارگذاری...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SERVER_IP = "aio44-SP9r.aternos.me:64838";
+  let currentPlayers = [];
+
+  const particlesEl = document.getElementById('particles');
+  for (let i = 0; i < 25; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.bottom = '-10px';
+    p.style.animationDuration = (8 + Math.random() * 10) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (2 + Math.random() * 3) + 'px';
+    particlesEl.appendChild(p);
+  }
+
+  function copyIP() {
+    navigator.clipboard.writeText(SERVER_IP).then(() => {
+      const icon = document.getElementById('copyIcon');
+      if (icon) { icon.textContent = '✅'; setTimeout(() => icon.textContent = '📋', 1500); }
+    });
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('show');
+    });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  function openPlayerModal() {
+    document.getElementById('playerModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    renderModalPlayers();
+  }
+
+  function closePlayerModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('playerModal').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePlayerModal();
+  });
+
+  function renderModalPlayers() {
+    const container = document.getElementById('modalPlayerList');
+    if (currentPlayers.length === 0) {
+      container.innerHTML = `
+        <div class="modal-empty">
+          <div class="emoji">😴</div>
+          <div>در حال حاضر هیچ پلیری آنلاین نیست</div>
+        </div>
+      `;
+      return;
+    }
+    container.innerHTML = currentPlayers.map((name, i) => `
+      <div class="player-row" style="animation-delay:${i * 0.04}s">
+        <img class="avatar-lg"
+             src="https://mc-heads.net/avatar/${name}/42"
+             alt="${name}"
+             onerror="this.src='https://mc-heads.net/avatar/MHF_Steve/42'">
+        <span class="name">${name}</span>
+        <span class="rank-badge">PLAYER</span>
+        <span class="online-dot"></span>
+      </div>
+    `).join('');
+  }
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch(`https://api.mcsrvstat.us/2/${SERVER_IP}`);
+      const data = await res.json();
+
+      const dot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      const playerCount = document.getElementById('playerCount');
+      const playerTotal = document.getElementById('playerTotal');
+      const playerPreview = document.getElementById('playerPreview');
+
+      if (data.online) {
+        dot.classList.remove('off');
+        statusText.textContent = 'آنلاین';
+        const online = data.players?.online ?? 0;
+        const max = data.players?.max ?? 0;
+        playerCount.textContent = `${online} پلیر آنلاین`;
+        playerTotal.textContent = `${online} / ${max}`;
+
+        currentPlayers = (data.players?.list || []).map(p =>
+          typeof p === 'string' ? p : p.name
+        );
+
+        if (currentPlayers.length > 0) {
+          playerPreview.innerHTML = currentPlayers.slice(0, 6).map((name, i) => `
+            <span class="player-tag" style="animation-delay:${i * 0.05}s">
+              <img class="avatar" src="https://mc-heads.net/avatar/${name}/22"
+                   alt="${name}" onerror="this.style.display='none'">
+              ${name}
+            </span>
+          `).join('') + (currentPlayers.length > 6
+            ? `<span class="player-tag" style="cursor:pointer;" onclick="openPlayerModal()">
+                 +${currentPlayers.length - 6} نفر دیگر
+               </span>`
+            : '');
+        } else {
+          playerPreview.innerHTML = '<span class="loading">هیچ پلیری آنلاین نیست</span>';
+        }
+
+        if (document.getElementById('playerModal').classList.contains('active')) {
+          renderModalPlayers();
+        }
+      } else {
+        dot.classList.add('off');
+        statusText.textContent = 'آفلاین';
+        playerCount.textContent = 'سرور آفلاین است';
+        playerTotal.textContent = '—';
+        currentPlayers = [];
+        playerPreview.innerHTML = '<span class="loading">سرور آفلاین است</span>';
+      }
+    } catch (err) {
+      document.getElementById('statusText').textContent = 'نامشخص';
+      document.getElementById('statusDot').classList.add('off');
+      document.getElementById('playerPreview').innerHTML =
+        '<span class="loading">امکان دریافت اطلاعات نیست</span>';
+    }
+  }
+
+  fetchStatus();
+  setInterval(fetchStatus, 60000);
+</script>
+
+</body>
+  </html>
