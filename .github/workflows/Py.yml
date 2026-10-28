@@ -1,0 +1,27 @@
+name: Rubika Bot
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      # این بخش جدید اضافه شده است
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install rubka requests Pillow
+          
+      - name: Run bot
+        run: python bot.py
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
