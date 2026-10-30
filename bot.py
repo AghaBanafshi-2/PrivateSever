@@ -1,257 +1,12 @@
-import requests
-import json
-import time
-import os
-from datetime import datetime
-
-# ================== تنظیمات بله ==================
-BOT_TOKEN = "603151917:blnGc0J56ClrSyk79xWxdpJnBdO-gyerPaU"
-BASE_URL = f"https://tapi.bale.ai/bot{BOT_TOKEN}/"
-BOT_USERNAME = "DownModBot"
-CREATOR = "@TheAghaBanafshi"
-STATE_FILE = "data.json"
-TEMP_DIR = "temp_files"
-
-# ============ آیدی مالک ============
-OWNER_ID = 448424297
-
-# ============ تنظیمات Modrinth ============
-MODRINTH_API = "https://api.modrinth.com/v2"
-MODRINTH_USER_AGENT = "BaleBot/1.0 (contact@example.com)"
-
-last_update_id = None
-user_data = {}
-user_state = {}
-waiting_for = {}
-waiting_for_admin = {}
-custom_start_ids = {}
-
-MAX_PART_SIZE = 18 * 1024 * 1024
-VERSIONS_PER_PAGE = 10
-
-# ============ لیست مرجع نسخه‌های ماینکرفت (نزولی) ============
-MINECRAFT_VERSION_ORDER = [
-    "26.3", "26.2", "26.1", "26.1.2", "26.1.1",
-    "1.21.11", "1.21.10", "1.21.9", "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21",
-    "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1", "1.20",
-    "1.19.4", "1.19.3", "1.19.2", "1.19.1", "1.19",
-    "1.18.2", "1.18.1", "1.18",
-    "1.17.1", "1.17",
-    "1.16.5", "1.16.4", "1.16.3", "1.16.2", "1.16.1", "1.16",
-    "1.15.2", "1.15.1", "1.15",
-    "1.14.4", "1.14.3", "1.14.2", "1.14.1", "1.14",
-    "1.13.2", "1.13.1", "1.13",
-    "1.12.2", "1.12.1", "1.12",
-    "1.11.2", "1.11.1", "1.11",
-    "1.10.2", "1.10.1", "1.10",
-    "1.9.4", "1.9.3", "1.9.2", "1.9.1", "1.9",
-    "1.8.9", "1.8.8", "1.8.7", "1.8.6", "1.8.5", "1.8.4", "1.8.3", "1.8.2", "1.8.1", "1.8",
-    "1.7.10", "1.7.9", "1.7.8", "1.7.7", "1.7.6", "1.7.5", "1.7.4", "1.7.3", "1.7.2",
-    "1.6.4", "1.6.2", "1.6.1", "1.6",
-    "1.5.2", "1.5.1", "1.5",
-    "1.4.7", "1.4.6", "1.4.5", "1.4.4", "1.4.2",
-    "1.3.2", "1.3.1",
-    "1.2.5", "1.2.4", "1.2.3", "1.2.2", "1.2.1",
-    "1.1", "1.0",
-]
-
-# ساخت دیکشنری برای جستجوی سریع‌تر: {version: index}
-VERSION_INDEX = {v: i for i, v in enumerate(MINECRAFT_VERSION_ORDER)}
-
-
-# ============ ذخیره و بازیابی ============
-def load_state():
-    global last_update_id, user_data, custom_start_ids
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                last_update_id = data.get("last_update_id")
-                user_data = data.get("user_data", {})
-                custom_start_ids = data.get("custom_start_ids", {})
-        except Exception as e:
-            print(f"[State] خطا: {e}")
-            last_update_id = None
-            user_data = {}
-            custom_start_ids = {}
-
-
-def save_state():
-    try:
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump({
-                "last_update_id": last_update_id,
-                "user_data": user_data,
-                "custom_start_ids": custom_start_ids
-            }, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[State] خطا در ذخیره: {e}")
-
-
-def get_user(user_id):
-    uid = str(user_id)
-    if uid not in user_data:
-        user_data[uid] = {
-            "coins": 0.0,
-            "last_daily": None,
-            "invited_by": None,
-            "has_started": False,
-            "name": "",
-            "username": ""
-        }
-    return user_data[uid]
-
-
-def get_coins_display(user_id):
-    if user_id == OWNER_ID:
-        return "∞"
-    u = get_user(user_id)
-    return f"{u['coins']:.1f}"
-
-
-# ============ ارسال پیام ============
-def send_message(chat_id, text, reply_markup=None):
-    payload = {"chat_id": chat_id, "text": text}
-    if reply_markup:
-        payload["reply_markup"] = json.dumps(reply_markup)
-    try:
-        r = requests.post(BASE_URL + "sendMessage", json=payload, timeout=30)
-        return r.json()
-    except Exception as e:
-        print(f"[Send] {e}")
-        return None
-
-
-def edit_message(chat_id, message_id, text, reply_markup=None):
-    payload = {"chat_id": chat_id, "message_id": message_id, "text": text}
-    if reply_markup:
-        payload["reply_markup"] = json.dumps(reply_markup)
-    try:
-        r = requests.post(BASE_URL + "editMessageText", json=payload, timeout=30)
-        return r.json()
-    except Exception as e:
-        print(f"[Edit] {e}")
-        return None
-
-
-def answer_callback(callback_query_id, text=""):
-    payload = {"callback_query_id": callback_query_id}
-    if text:
-        payload["text"] = text
-    try:
-        requests.post(BASE_URL + "answerCallbackQuery", json=payload, timeout=10)
-    except:
-        pass
-
-
-# ============ ارسال فایل ============
-def send_document(chat_id, document_url, caption=""):
-    payload = {"chat_id": chat_id, "document": document_url}
-    if caption:
-        payload["caption"] = caption
-    try:
-        r = requests.post(BASE_URL + "sendDocument", json=payload, timeout=120)
-        return r.json()
-    except Exception as e:
-        print(f"[sendDocument] {e}")
-        return None
-
-
-def send_document_file(chat_id, file_path, caption=""):
-    try:
-        with open(file_path, "rb") as f:
-            files = {"document": f}
-            data = {"chat_id": chat_id}
-            if caption:
-                data["caption"] = caption
-            r = requests.post(BASE_URL + "sendDocument", data=data, files=files, timeout=120)
-            return r.json()
-    except Exception as e:
-        print(f"[sendDocumentFile] {e}")
-        return None
-
-
-# ============ تقسیم فایل ============
-def split_file(file_path, part_size=MAX_PART_SIZE):
-    os.makedirs(TEMP_DIR, exist_ok=True)
-    parts = []
-    base_name = os.path.basename(file_path)
-    name, ext = os.path.splitext(base_name)
-    try:
-        with open(file_path, "rb") as f:
-            part_num = 1
-            while True:
-                chunk = f.read(part_size)
-                if not chunk:
-                    break
-                part_path = os.path.join(TEMP_DIR, f"{name}_part{part_num:02d}{ext}")
-                with open(part_path, "wb") as pf:
-                    pf.write(chunk)
-                parts.append(part_path)
-                part_num += 1
-    except Exception as e:
-        print(f"[Split] خطا: {e}")
-        return []
-    return parts
-
-
-def download_file(url, dest_path):
-    try:
-        r = requests.get(url, stream=True, timeout=120)
-        r.raise_for_status()
-        with open(dest_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-        return True
-    except Exception as e:
-        print(f"[Download] خطا: {e}")
-        return False
-
-
-# ============ Modrinth API ============
-def modrinth_search(query, project_type="mod", limit=5):
-    try:
-        params = {
-            "query": query,
-            "limit": limit,
-            "facets": json.dumps([[f"project_type:{project_type}"]])
-        }
-        r = requests.get(f"{MODRINTH_API}/search", params=params,
-                         headers={"User-Agent": MODRINTH_USER_AGENT}, timeout=20)
-        return r.json().get("hits", [])
-    except Exception as e:
-        print(f"[Search] {e}")
-        return []
-
-
-def modrinth_get_versions(slug, game_version=None):
-    try:
-        params = {"include_changelog": "false"}
-        if game_version:
-            params["game_versions"] = json.dumps([game_version])
-        r = requests.get(f"{MODRINTH_API}/project/{slug}/version", params=params,
-                         headers={"User-Agent": MODRINTH_USER_AGENT}, timeout=20)
-        return r.json()
-    except Exception as e:
-        print(f"[Versions] {e}")
-        return []
-
-
-# ============ مرتب‌سازی نسخه‌ها ============
-def version_sort_key(v):
-    """مرتب‌سازی بر اساس لیست مرجع نسخه‌های ماینکرفت"""
-    gvs = v.get("game_versions", [])
-    if not gvs:
-        return 9999
-    gv = gvs[0]
-    return VERSION_INDEX.get(gv, 9999)
-
+from config import *
 
 # ============ دکمه‌های شیشه‌ای ============
 def build_main_keypad(user_id):
     rows = [
-        [{"text": "🔍 جستجوی ماد", "callback_data": "menu_mod"}],
-        [{"text": "📦 جستجوی ریسورس‌پک", "callback_data": "menu_rp"}],
+        [{"text": "🔍 ماد (Java)", "callback_data": "menu_mod"}],
+        [{"text": "📦 ریسورس‌پک (Java)", "callback_data": "menu_rp"}],
+        [{"text": "🪨 ماد (Bedrock)", "callback_data": "menu_bedrock_mod"}],
+        [{"text": "🎨 ریسورس‌پک (Bedrock)", "callback_data": "menu_bedrock_rp"}],
         [{"text": "🎁 دعوت دوستان", "callback_data": "menu_invite"}],
         [{"text": "💰 سکه‌های من", "callback_data": "menu_coins"}],
     ]
@@ -274,12 +29,21 @@ def build_admin_keypad():
     }
 
 
-def build_results_keypad(hits):
+def build_modrinth_results_keypad(hits):
     rows = []
     for h in hits[:5]:
         slug = h.get("slug", "")
         title = h.get("title", "بدون نام")[:25]
         rows.append([{"text": f"📦 {title}", "callback_data": f"mod_{slug}"}])
+    return {"inline_keyboard": rows}
+
+
+def build_curseforge_results_keypad(hits):
+    rows = []
+    for h in hits[:5]:
+        mod_id = h.get("id")
+        title = h.get("name", "بدون نام")[:25]
+        rows.append([{"text": f"🪨 {title}", "callback_data": f"cf_{mod_id}"}])
     return {"inline_keyboard": rows}
 
 
@@ -313,12 +77,14 @@ def build_versions_text(slug, total, page=0):
 # ============ منو ============
 def get_menu_text(user_id):
     coins = get_coins_display(user_id)
-    return f"""🤖 ربات Modrinth (بله)
+    return f"""🤖 ربات دانلود مود (Java + Bedrock)
 
 💰 سکه‌های شما: {coins}
 
-🔍 برای جستجوی ماد، روی دکمه بزن یا بنویس: mod <نام>
-📦 برای ریسورس‌پک: rp <نام>
+🔍 ماد (Java): mod <نام>
+📦 ریسورس‌پک (Java): rp <نام>
+🪨 ماد (Bedrock): bmod <نام>
+🎨 ریسورس‌پک (Bedrock): brp <نام>
 🎁 /invite — لینک دعوت
 💰 /coins — موجودی سکه
 
@@ -568,19 +334,68 @@ def handle_update(update):
                 send_message(chat_id, "❌ نام را وارد کن.")
                 return
             send_message(chat_id, f"⏳ جستجوی «{query}»...")
-            project_type = "mod" if mode == "mod" else "resourcepack"
-            hits = modrinth_search(query, project_type)
-            if not hits:
-                send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
-                return
-            send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_results_keypad(hits))
+
+            if mode == "mod":
+                hits = modrinth_search(query, "mod")
+                if not hits:
+                    send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
+                    return
+                send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_modrinth_results_keypad(hits))
+            elif mode == "rp":
+                hits = modrinth_search(query, "resourcepack")
+                if not hits:
+                    send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
+                    return
+                send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_modrinth_results_keypad(hits))
+            elif mode == "bedrock_mod":
+                hits = curseforge_search(query, is_resourcepack=False)
+                if not hits:
+                    send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
+                    return
+                send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_curseforge_results_keypad(hits))
+            elif mode == "bedrock_rp":
+                hits = curseforge_search(query, is_resourcepack=True)
+                if not hits:
+                    send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
+                    return
+                send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_curseforge_results_keypad(hits))
             return
 
         lower_text = text.lower()
-        if lower_text.startswith("mod ") or lower_text == "mod":
+        if lower_text.startswith("bmod ") or lower_text == "bmod":
+            text = "/" + text
+        elif lower_text.startswith("brp ") or lower_text == "brp":
+            text = "/" + text
+        elif lower_text.startswith("mod ") or lower_text == "mod":
             text = "/" + text
         elif lower_text.startswith("rp ") or lower_text == "rp":
             text = "/" + text
+
+        if text == "/bmod" or text.startswith("/bmod "):
+            if len(text.split()) < 2:
+                send_message(chat_id, "❌ مثال: bmod furniture")
+                return
+            arg = text.split(maxsplit=1)[1].strip()
+            send_message(chat_id, f"⏳ جستجوی ماد بدراک «{arg}»...")
+            hits = curseforge_search(arg, is_resourcepack=False)
+            if not hits:
+                send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
+                return
+            send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_curseforge_results_keypad(hits))
+            return
+
+        if text == "/brp" or text.startswith("/brp "):
+            if len(text.split()) < 2:
+                send_message(chat_id, "❌ مثال: brp faithful")
+                return
+            arg = text.split(maxsplit=1)[1].strip()
+            send_message(chat_id, f"⏳ جستجوی ریسورس‌پک بدراک «{arg}»...")
+            hits = curseforge_search(arg, is_resourcepack=True)
+            if not hits:
+                send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
+                return
+            send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_curseforge_results_keypad(hits))
+            return
 
         if text == "/mod" or text.startswith("/mod "):
             if len(text.split()) < 2:
@@ -592,7 +407,7 @@ def handle_update(update):
             if not hits:
                 send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
                 return
-            send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_results_keypad(hits))
+            send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_modrinth_results_keypad(hits))
             return
 
         if text == "/rp" or text.startswith("/rp "):
@@ -605,7 +420,7 @@ def handle_update(update):
             if not hits:
                 send_message(chat_id, "❌ نتیجه‌ای یافت نشد.")
                 return
-            send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_results_keypad(hits))
+            send_message(chat_id, "🔎 نتایج (روی دکمه بزن):", reply_markup=build_modrinth_results_keypad(hits))
             return
 
         if text == "/invite":
@@ -635,11 +450,19 @@ def handle_update(update):
 
         if data == "menu_mod":
             waiting_for[chat_id] = "mod"
-            send_message(chat_id, "🔍 نام ماد را بنویس (بدون اسلش):")
+            send_message(chat_id, "🔍 نام ماد (Java) را بنویس:")
             return
         if data == "menu_rp":
             waiting_for[chat_id] = "rp"
-            send_message(chat_id, "📦 نام ریسورس‌پک را بنویس (بدون اسلش):")
+            send_message(chat_id, "📦 نام ریسورس‌پک (Java) را بنویس:")
+            return
+        if data == "menu_bedrock_mod":
+            waiting_for[chat_id] = "bedrock_mod"
+            send_message(chat_id, "🪨 نام ماد (Bedrock) را بنویس:")
+            return
+        if data == "menu_bedrock_rp":
+            waiting_for[chat_id] = "bedrock_rp"
+            send_message(chat_id, "🎨 نام ریسورس‌پک (Bedrock) را بنویس:")
             return
         if data == "menu_invite":
             link = f"https://ble.ir/{BOT_USERNAME}?start={user_id}"
@@ -704,12 +527,28 @@ def handle_update(update):
             if not versions:
                 send_message(chat_id, "❌ نسخه‌ای یافت نشد.")
                 return
-            # مرتب‌سازی بر اساس لیست مرجع (نسخه‌های جدیدتر اول)
             versions_sorted = sorted(versions, key=version_sort_key, reverse=False)
             user_state[chat_id] = {"slug": slug, "versions": versions_sorted, "page": 0}
             keypad = build_versions_keypad_paginated(versions_sorted, slug, 0)
             text = build_versions_text(slug, len(versions_sorted), 0)
             send_message(chat_id, text, reply_markup=keypad)
+            return
+
+        if data.startswith("cf_"):
+            mod_id = data[3:]
+            send_message(chat_id, f"⏳ دریافت فایل‌های CurseForge...")
+            files = curseforge_get_files(mod_id)
+            if not files:
+                send_message(chat_id, "❌ فایلی یافت نشد.")
+                return
+            # ارسال آخرین فایل
+            f = files[0]
+            file_url = f.get("downloadUrl")
+            filename = f.get("fileName", "file.jar")
+            if not file_url:
+                send_message(chat_id, "❌ لینک دانلود یافت نشد.")
+                return
+            send_mod_file(chat_id, file_url, filename)
             return
 
         if data.startswith("page_"):
@@ -775,7 +614,7 @@ def main():
     global last_update_id
     load_state()
     os.makedirs(TEMP_DIR, exist_ok=True)
-    print(f"🤖 ربات Modrinth (بله) شروع شد | {CREATOR}")
+    print(f"🤖 ربات دانلود مود شروع شد | {CREATOR}")
     print(f"🔗 لینک ربات: https://ble.ir/{BOT_USERNAME}")
     print(f"👑 مالک: {OWNER_ID}")
     while True:
